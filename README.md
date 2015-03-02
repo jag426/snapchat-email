@@ -11,4 +11,4 @@ If you're sending from Gmail's SMTP server:
 If not, you can specify a server with <code>-s serveraddress</code> and a sender address with <code>-f sender@email</code>.
 
 ###Coming Soon
-Forwarding video snaps; sending snaps via email
+Sending snaps via email

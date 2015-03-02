@@ -1,8 +1,12 @@
 from argparse import ArgumentParser
 from snapchat_bots import SnapchatBot
 import smtplib
-from email.mime.image import MIMEImage
+from os.path import basename
+from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import COMMASPACE, formatdate
+from email import encoders
 
 class EmailBot(SnapchatBot):
     def __init__(self, username, password, smtp, emailuser, emailpass, sender, recipient):
@@ -15,28 +19,30 @@ class EmailBot(SnapchatBot):
         self.recipient = recipient or self.sender
 
     def on_snap(self, snapsender, snap):
-        # check media type. currently only supports photos.
-        # todo: magic number!
-        if snap.media_type != 0:
-            # not an image. abort.
-            print("Ignoring non-image snap.")
-            return
-
         # Construct email message with image attached
         msg = MIMEMultipart()
         msg['Subject'] = 'Snap from ' + snapsender
         msg['From'] = 'SnapchatEmail Bot'
-        msg['To'] = self.recipient
+        msg['To'] = COMMASPACE.join([self.recipient])
+        msg['Date'] = formatdate(localtime=True)
+
+        msg.attach(MIMEText('attached'))
+
         with open(snap.file.name, 'rb') as fp:
-            img = MIMEImage(fp.read())
-            msg.attach(img)
+            attachment = MIMEBase('application', 'octet-stream')
+            attachment.set_payload(fp.read())
+            encoders.encode_base64(attachment)
+            attachment.add_header(
+                    'Content-Disposition',
+                    'attachment; filename="%s"' % basename(snap.file.name))
+            msg.attach(attachment)
 
         # Connect to SMTP server and send message
         s = smtplib.SMTP(self.smtp)
         s.ehlo()
         s.starttls()
         s.login(self.emailuser, self.emailpass)
-        s.sendmail(self.sender, ", ".join([self.recipient]), msg.as_string())
+        s.sendmail(msg['From'], msg['To'], msg.as_string())
         s.quit()
 
         print("Emailed snap from " + snapsender + ".")
